@@ -1,0 +1,26 @@
+WITH x AS (
+  SELECT approval_datetime,cardinal,user_id,
+MIN(approval_datetime) OVER(PARTITION BY user_id order by approval_datetime) as first_time,
+row_number() OVER(PARTITION by user_id order by approval_datetime) AS row_num,
+LAG(approval_datetime) OVER(PARTITION BY user_id ORDER BY approval_datetime) as lag_,
+CASE WHEN accounts_user.employment_status = 0 THEN 'Employed' 
+    WHEN accounts_user.employment_status = 6 THEN 'Self-Employed'
+     END AS emp_role
+
+FROM loan_loan  
+LEFT JOIN accounts_user on loan_loan.user_id = accounts_user.id
+where approval_datetime notnull  and {{state}} and employment_status in (0,6)
+
+),
+
+ y as (
+    SELECT approval_datetime,cardinal,row_num,user_id,emp_role,
+    first_time,lag_,
+    DATE_PART('day', approval_datetime - first_time) loan_movement_jump,
+    DATE_PART('day', approval_datetime - lag_) loan_movement_sequence
+    FROM x ORDER BY row_num, cardinal
+)
+
+SELECT date_trunc('month',first_time),emp_role,AVG(y.loan_movement_jump) as migration,count(user_id) as customers_  from y
+where date_trunc('month',first_time)>= '2020-01-01' and cardinal = '8'
+GROUP BY 1,2
