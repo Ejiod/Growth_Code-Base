@@ -1,0 +1,12 @@
+select user_id,cardinal,approval_datetime::date,repayment_datetime::date,
+(repayment_datetime::date- approval_datetime::date) days_before_repayment,
+(next_payment_date::date- approval_datetime::date) tenor,
+sum(principal/100) as loan_amount,sum(repaid/100) as loan_repaid,
+sum(interest/100) as interest
+    from loan_loan
+    left join accounts_user on accounts_user.id = loan_loan.user_id
+    where repayment_datetime::date <= next_payment_date::date + interval '3 days' AND lifecycle_status = 4 
+    and product_id = 8
+    and loan_loan.experiments::text not ilike '%katsina%'
+    and is_fraudulent = false and is_rescheduled = false
+    and approval_datetime is not null group by 1,2,3,4,5,6
