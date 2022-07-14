@@ -1,0 +1,33 @@
+WITH rev_month as  (SELECT DATE_TRUNC('month', transaction_transaction.payment_datetime) as "month",
+SUM(transaction_transaction.interest/100 + transaction_transaction.late_fee/100 + transaction_transaction.write_off_interest/100
++ transaction_transaction.write_off_late_fee/100 + transaction_transaction.write_off_principal_paid/100 ) AS "revenue"
+FROM transaction_transaction
+LEFT JOIN loan_loan on transaction_transaction.loan_id = loan_loan.id
+LEFT JOIN loan_loanproduct ON loan_loan.product_id = loan_loanproduct.id
+WHERE lifecycle_status IN (1,2,3,4,5,12)
+AND transaction_transaction.payment_datetime::DATE >= '20190101'
+AND status = 2 
+AND transaction_type = 1
+GROUP BY 1),
+ t as 
+    (select month, revenue, row_number() over () 
+     from rev_month)
+select t.month, avg(t.revenue) as revenue, 
+sum(case 
+    when t.row_number - t2.row_number = 0 then 0.15 * t2.revenue 
+    when t.row_number - t2.row_number = 1 then 0.14 * t2.revenue 
+    when t.row_number - t2.row_number = 2 then 0.13 * t2.revenue 
+    when t.row_number - t2.row_number = 3 then 0.12 * t2.revenue 
+    when t.row_number - t2.row_number = 4 then 0.11 * t2.revenue 
+    when t.row_number - t2.row_number = 5 then 0.10 * t2.revenue 
+    when t.row_number - t2.row_number = 6 then 0.09 * t2.revenue 
+    when t.row_number - t2.row_number = 7 then 0.08 * t2.revenue 
+    when t.row_number - t2.row_number = 8 then 0.06 * t2.revenue 
+    when t.row_number - t2.row_number = 9 then 0.05 * t2.revenue 
+    when t.row_number - t2.row_number = 10 then 0.04 * t2.revenue 
+    when t.row_number - t2.row_number = 11 then 0.03 * t2.revenue 
+end) "12-month period WMA Revenue"
+from t 
+join t t2 on t2.row_number between t.row_number - 11 and t.row_number 
+group by 1
+order by 1
