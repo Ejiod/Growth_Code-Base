@@ -1,0 +1,14 @@
+
+SELECT loan_loan.approval_datetime::DATE,
+count(distinct loan_loan.user_id) as active_users,
+count(distinct future_loan_loan.user_id) as retained_users,
+count(distinct future_loan_loan.user_id) /count(distinct loan_loan.user_id)::float as retention
+FROM loan_loan 
+left join loan_loan as future_loan_loan
+ on loan_loan.user_id = future_loan_loan.user_id
+ and loan_loan.approval_datetime::DATE = future_loan_loan.approval_datetime::DATE - interval
+'1 day' AND loan_loan.cardinal = 1 and loan_loan.approval_datetime::DATE notnull and loan_loan.product_id = 1
+WHERE loan_loan.approval_datetime >= NOW() - INTERVAL '2' DAY and future_loan_loan.product_id <=2
+group by 1
+
+
