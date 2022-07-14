@@ -1,0 +1,25 @@
+WITH stickiness as (
+WITH dau AS
+(
+  SELECT (date_created::date) AS date_created,
+         COUNT(DISTINCT accounts_user.id) AS dau
+         FROM accounts_userlogin ds
+LEFT JOIN accounts_user on accounts_user.id = ds.user_id
+            where date_created::date >= '2022-06-01' and origin in (0,1)
+  GROUP BY (date_created::date)
+)
+SELECT date_created::date,
+       dau,
+       (SELECT COUNT(DISTINCT accounts_user.id)
+       -- FROM table ds
+       FROM accounts_userlogin ds
+LEFT JOIN accounts_user on accounts_user.id = ds.user_id
+            
+        WHERE origin in (0,1) AND  ds.date_created::date 
+          BETWEEN dau.date_created::date - 29*INTERVAL '1 day' AND dau.date_created::date) AS mau
+          -- here
+FROM dau
+ORDER BY date_created::date)
+
+select *,dau::float8/mau::float8*100::float8 as stickiness
+from stickiness
