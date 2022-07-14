@@ -1,0 +1,12 @@
+SELECT
+     Avg(revenue) AS ARPU,
+     date_trunc('month',cohort_date) as cohort
+     --EXTRACT('YEAR' FROM visit_month)||'-' ||LPAD(EXTRACT('MONTH' FROM visit_month)::text,2, '0') as cohort
+FROM
+     (SELECT
+          loan_loan.user_id,
+            approval_datetime::date as cohort_date,
+          SUM(late_fee/100 + interest/100 + write_off_interest/100 ) AS revenue 
+     FROM   loan_loan 
+     WHERE  approval_datetime >= '2021-01-01' and  {{cardinal}}
+     GROUP BY 1,2) d group by cohort order by cohort asc
