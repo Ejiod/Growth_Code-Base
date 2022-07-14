@@ -1,0 +1,45 @@
+SELECT 
+    RANK, 
+    LEVEL, 
+    CASE 
+            WHEN last_payment_date::date - approval_datetime::date<=15 THEN 15
+            WHEN last_payment_date::date - approval_datetime::date<=30 THEN 30 
+            WHEN last_payment_date::date - approval_datetime::date<=60 THEN 60 
+            WHEN last_payment_date::date - approval_datetime::date<=90 THEN 90
+            WHEN last_payment_date::date - approval_datetime::date<=120 THEN 120
+            WHEN last_payment_date::date - approval_datetime::date<=150 THEN 150
+            ELSE 0 
+            END 
+    as tenure, 
+    AVG(principal/100) AS AVG_PRINCIPAL,
+    AVG(interest/100) AS AVG_INTEREST,
+    MIN(credibuilder_usercredibuildertype.MIN_AMOUNT/100) AS MIN_AMOUNT,
+    MAX(credibuilder_usercredibuildertype.max_amount/100) AS max_amount,
+    COUNT(*), 
+    SUM(CASE WHEN lifecycle_status IN (4) THEN 1 ELSE 0 END) AS "PAID", 
+    SUM(CASE WHEN lifecycle_status IN (1) THEN 1 ELSE 0 END) AS "ONGOING",
+    SUM(CASE WHEN lifecycle_status=2 AND next_payment_date::date - approval_datetime::date<30 THEN 1 ELSE 0 END) AS "<30_OVERDUE", 
+    SUM(CASE WHEN lifecycle_status=2 AND next_payment_date::date - approval_datetime::date<60 AND next_payment_date::date - approval_datetime::date>=30 THEN 1 ELSE 0 END) AS "30-60_OVERDUE",
+    SUM(CASE WHEN lifecycle_status=2 AND next_payment_date::date - approval_datetime::date>=60 THEN 1 ELSE 0 END) AS "60-90_OVERDUE", 
+    SUM(CASE WHEN lifecycle_status IN (3,5) THEN 1 ELSE 0 END) AS "DEFAULT",
+    SUM(CASE WHEN lifecycle_status IN (3,5) THEN 1 ELSE 0 END)/COUNT(*)::decimal*100 as "%defaulted"
+        
+
+FROM LOAN_LOAN 
+LEFT JOIN credibuilder_usercredibuildertype ON credibuilder_usercredibuildertype.user_id = LOAN_LOAN.user_id
+
+WHERE approval_datetime IS NOT NULL AND product_id=8
+
+GROUP BY rank, LEVEL,
+         CASE 
+            WHEN last_payment_date::date - approval_datetime::date<=15 THEN 15
+            WHEN last_payment_date::date - approval_datetime::date<=30 THEN 30 
+            WHEN last_payment_date::date - approval_datetime::date<=60 THEN 60 
+            WHEN last_payment_date::date - approval_datetime::date<=90 THEN 90
+            WHEN last_payment_date::date - approval_datetime::date<=120 THEN 120
+            WHEN last_payment_date::date - approval_datetime::date<=150 THEN 150
+            ELSE 0 
+            END 
+ORDER BY RANK, LEVEL 
+
+
