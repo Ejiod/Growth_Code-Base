@@ -1,0 +1,12 @@
+
+SELECT loan_loan.approval_datetime::DATE,
+count(distinct loan_loan.user_id) as active_users,
+count(distinct future_loan_loan.user_id) as retained_users,
+count(distinct future_loan_loan.user_id) /count(distinct loan_loan.user_id)::float as retention
+FROM loan_loan 
+left join loan_loan as future_loan_loan
+ on loan_loan.user_id = future_loan_loan.user_id
+ and loan_loan.approval_datetime::DATE = future_loan_loan.approval_datetime::DATE - interval
+'30 day' AND loan_loan.cardinal = 1
+WHERE loan_loan.approval_datetime >= '2021-01-01'
+group by 1
