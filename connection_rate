@@ -1,0 +1,11 @@
+select date_trunc('months', admin_loancallshistory.created_datetime) as "months",
+CASE WHEN cardinal = 1 then 'New user' 
+     WHEN cardinal >= 8 THEN 'cardinal8+' END  AS cardinal_band,
+(sum(case when answer in ('yes', 'promised') then 1 else 0 end)::decimal / count(admin_loancallshistory.id)::decimal)::decimal(10,4) as connection_rate
+from admin_loancallshistory
+join loan_loan on admin_loancallshistory.loan_id=loan_loan.id
+LEFT JOIN accounts_user on accounts_user.id = loan_loan.user_id
+where {{Product}}
+    and {{squad}}
+    and {{stage}}
+group by date_trunc('months', admin_loancallshistory.created_datetime),cardinal_band
