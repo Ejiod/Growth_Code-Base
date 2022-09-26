@@ -1,0 +1,21 @@
+
+
+SELECT
+  pt.cohorts,
+  pt.total_rev,
+  ROUND((pt.total_rev/SUM(pt.total_rev) OVER ())* 100, 2)  AS PERCENTAGE,
+  ROUND(((SUM(pt.total_rev) OVER (ORDER BY total_rev DESC))/SUM(pt.total_rev) OVER ())* 100, 2) AS cummulative_percent
+FROM 
+(
+    SELECT 
+    EXTRACT('YEAR' FROM approval_datetime)||'-' ||LPAD(EXTRACT('quarter' FROM approval_datetime)::text,2, '0') as cohorts,
+    SUM((interest+late_fee+write_off_interest+write_off_late_fee)/100) AS total_rev
+    FROM loan_loan 
+    left join accounts_user on accounts_user.id = loan_loan.user_id
+    where  approval_datetime NOTNULL --and state = 'Lagos' and  
+    GROUP BY 1
+    ORDER BY cohorts DESC 
+) pt
+
+ORDER BY cummulative_percent ASC    
+
