@@ -1,0 +1,14 @@
+
+SELECT   users.date_joined::date as date_joined_,
+count(distinct accounts_userlogin.user_id) as new_active_users,
+count(distinct future_login.user_id) as retained_users,
+count(distinct future_login.user_id) /count(distinct accounts_userlogin.user_id)::float as retention
+FROM accounts_userlogin 
+join accounts_user users on
+  accounts_userlogin.user_id = users.id 
+  and users.date_joined::date = accounts_userlogin.date_created::date
+left join accounts_userlogin as future_login on
+  accounts_userlogin.user_id = future_login.user_id
+  and accounts_userlogin.date_created::date = future_login.date_created::date - interval '1 day'
+WHERE accounts_userlogin.date_created::DATE >= NOW() - '60 days'::INTERVAL
+group by 1
