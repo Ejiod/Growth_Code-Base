@@ -1,0 +1,33 @@
+with recursive p as (
+    select DATE_TRUNC('quarter', transaction_transaction.payment_datetime)  as month_date, 
+           0.5 as alpha,
+           row_number() over (),
+           SUM(transaction_transaction.interest/100 + transaction_transaction.late_fee/100 + transaction_transaction.write_off_interest/100
++ transaction_transaction.write_off_late_fee/100 + transaction_transaction.write_off_principal_paid/100 )::double precision  AS rev
+    from transaction_transaction 
+    LEFT JOIN loan_loan on transaction_transaction.loan_id = loan_loan.id
+LEFT JOIN loan_loanproduct ON loan_loan.product_id = loan_loanproduct.id
+WHERE lifecycle_status IN (1,2,3,4,5,12)
+--AND transaction_transaction.payment_datetime::DATE >= '20220101'
+AND status = 2 
+AND transaction_type = 1
+GROUP BY 1
+),
+
+ema as (
+    select *, rev as rev_ema from p 
+    where row_number = 1
+
+    union all
+
+    select e2.month_date, 
+           e2.alpha, 
+           e2.row_number, 
+           e2.rev, 
+           (e2.alpha::double precision * e2.rev::double precision + (1.0 - e2.alpha)::double precision * ema.rev)::double precision as rev_ema
+    from ema
+    join p e2 on ema.row_number = e2.row_number - 1
+)
+
+select month_date, rev::float8, rev_ema::float8
+from ema
