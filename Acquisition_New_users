@@ -1,0 +1,21 @@
+SELECT date_trunc('day', approval_datetime) as month_date, 
+        count(case when cardinal = 1 then user_id end) as new_user,
+        count(case when adjust_data->'attribution'->0->>'network' not ilike '%facebook%' 
+                    and adjust_data->'attribution'->0->>'network' not ilike '%google%'
+                    or adjust_data->'attribution'->0->>'network' is null then user_id end) as "Organic",
+        count(case when adjust_data->'attribution'->0->>'network' ilike '%facebook%' then user_id end) as "Facebook",
+        count(case when adjust_data->'attribution'->0->>'network' ilike '%google%' then user_id end) as "Google"
+FROM (
+    select user_id, approval_datetime, row_number() over(partition by user_id order by approval_datetime asc) as cardinal, adjust_data
+    from loan_loan
+    left join accounts_user on accounts_user.id = loan_loan.user_id
+    where lifecycle_status in (1,2,3,4,5) 
+    and product_id not in (2,3,4,11)
+    and loan_loan.experiments::text not ilike '%katsina%'
+    and is_fraudulent = false and is_rescheduled = false
+    and approval_datetime is not null
+    and approval_datetime >= '2021-01-01'
+    ) a  
+WHERE cardinal = 1
+GROUP BY 1
+ORDER BY 1
