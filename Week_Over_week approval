@@ -1,0 +1,11 @@
+WITH growth as (select date_trunc('week',approval_datetime) as weeks_,
+count(loan_loan.id) as current_loans,
+lag(count(loan_loan.id), 1) over (order by date_trunc('week',approval_datetime)) as previous_loan
+from loan_loan
+left join accounts_user on accounts_user.id = loan_loan.user_id
+where approval_datetime  is not null and {{cardinal}} and approval_datetime >= '2021-01-01'
+group by 1
+order by 1)
+
+select *,(current_loans-previous_loan)/(previous_loan)::decimal*100 as "%growth" from growth
+
