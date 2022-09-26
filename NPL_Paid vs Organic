@@ -1,0 +1,58 @@
+WITH 
+    user_cardinal AS (SELECT user_id, id AS loan_id, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY approval_datetime) AS overall_cardinal FROM loan_loan WHERE approval_datetime IS NOT NULL),
+  
+potential as (
+    SELECT 
+        loan_loan.principal / 100 as principal, 
+    next_payment_date,
+   
+CASE 
+    WHEN adjust_data->'attribution'->0->>'network' not ilike '%facebook%' and 
+    adjust_data->'attribution'->0->>'network' not ilike '%google%' or adjust_data->'attribution'->0->>'network'
+    is null then 'organic'
+WHEN (adjust_data->'attribution'->0->>'network' ilike '%facebook%')
+OR adjust_data->'attribution'->0->>'network' ilike '%google%' then 'paid' END as acquisition_type,
+
+
+--CASE WHEN repayment_datetime::date <= next_payment_date::date + interval '30 days' AND lifecycle_status = 4 THEN principal / 100 END AS par30,
+--CASE WHEN next_payment_date::date + interval '30 days' <= NOW()::date THEN principal / 100 END AS p30,
+CASE WHEN repayment_datetime::date <= next_payment_date::date + interval '90 days' AND lifecycle_status = 4 THEN principal / 100 END  AS par90
+--CASE WHEN next_payment_date::date + interval '90 days' <= NOW()::date THEN principal / 100 END AS p90
+
+    FROM loan_loan 
+    LEFT JOIN loan_loantype ON loan_loan.loan_type_id = loan_loantype.id
+    LEFT JOIN loan_loanproduct ON loan_loan.product_id = loan_loanproduct.id
+    LEFT JOIN accounts_user ON loan_loan.user_id = accounts_user.id
+    LEFT JOIN user_cardinal ON loan_loan.id = user_cardinal.loan_id
+    WHERE 
+        loan_loan.lifecycle_status IN (1,2,3,4,5,12)
+      AND overall_cardinal = 1
+        AND {{product}}
+        AND is_fraudulent = false
+        AND is_rescheduled = false AND approval_datetime BETWEEN '2019-01-01' AND '2022-06-01'
+    
+),
+    
+sum_table as (
+        SELECT 
+            date_trunc('month', next_payment_date) as due_date,acquisition_type,
+            --sum(par30) as par30,
+            sum(par90) as par90,
+            --sum(p30) as p30,
+            --sum(p90) as p90,
+            sum(principal) as principal
+        FROM potential
+        WHERE next_payment_date > {{From_date}}
+        GROUP BY due_date,acquisition_type
+        ORDER BY due_date
+)
+
+SELECT 
+    due_date::date,acquisition_type,
+    --1 - SUM(par30) / SUM(principal) as "NPL30",
+    1 - SUM(par90) / SUM(principal) as "NPL90",
+    SUM(principal) as "tot.approved"
+   
+FROM sum_table
+GROUP BY due_date,acquisition_type
+ORDER BY due_date ASC
