@@ -1,0 +1,25 @@
+WITH x AS (
+  SELECT approval_datetime,cardinal,user_id,
+MIN(approval_datetime) OVER(PARTITION BY user_id order by approval_datetime) as first_time,
+row_number() OVER(PARTITION by user_id order by approval_datetime) AS row_num,
+LAG(approval_datetime) OVER(PARTITION BY user_id ORDER BY approval_datetime) as lag_
+FROM loan_loan  
+LEFT JOIN accounts_user on loan_loan.user_id = accounts_user.id
+where approval_datetime notnull  and {{state}} and {{employment_status}} 
+
+),
+
+ y as (
+    SELECT approval_datetime,cardinal,row_num,user_id,
+    first_time,lag_,
+    DATE_PART('day', approval_datetime - first_time) loan_movement_jump,
+    DATE_PART('day', approval_datetime - lag_) loan_movement_sequence
+    FROM x where cardinal = '8' ORDER BY row_num, cardinal
+)
+
+SELECT date_trunc('month',first_time),AVG(y.loan_movement_jump) as migration,count( distinct loan_loan.user_id) as customers_,
+SUM(CASE WHEN lifecycle_status IN (3,5) THEN 1 ELSE 0 END)  AS defaulted_
+from y
+LEFT JOIN loan_loan on loan_loan.user_id = y.user_id
+where date_trunc('month',first_time)>= '2020-01-01' 
+GROUP BY 1
