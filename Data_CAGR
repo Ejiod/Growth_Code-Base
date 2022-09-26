@@ -1,0 +1,15 @@
+WITH user_loan_ltv AS 
+(SELECT 
+user_id,approval_datetime::DATE AS approval_datetime,
+SUM(interest/100) AS interest_paid,
+SUM(late_fee/100) AS fees_paid,
+SUM(principal_defaulted/100) AS defaulted_amount,
+SUM(interest/100) + SUM(late_fee/100) - SUM(principal_defaulted/100) AS loan_ltv
+FROM loan_loan 
+WHERE lifecycle_status IN (3,4,5)
+AND is_fraudulent IS FALSE 
+AND is_rescheduled IS FALSE
+AND approval_datetime::DATE > '2016-01-01'
+GROUP BY user_id,approval_datetime)
+
+SELECT date_trunc('month',approval_datetime), sum(loan_ltv) as rev FROM user_loan_ltv group by 1
