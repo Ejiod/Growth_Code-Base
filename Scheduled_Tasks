@@ -1,0 +1,15 @@
+---select *,updated_datetime-created_datetime from transaction_paystackbulkchargequeue where updated_datetime >= now()-interval '30day'
+WITH time_stamp_ as (
+SELECT created_datetime,id,
+MIN(created_datetime) OVER(ORDER BY created_datetime) as first_time,
+MAX(created_datetime) OVER(ORDER BY created_datetime) as last_time,
+LAG(created_datetime) OVER(ORDER BY created_datetime) as lag_,
+LEAD(created_datetime) OVER(ORDER BY created_datetime) as lead_
+
+FROM transaction_paystackbulkchargequeue  
+where created_datetime >= '2021-12-01'
+),
+ summary_data AS (
+SELECT created_datetime,id,lead_,lag_, (lead_::date - lag_::date) as days_difference from time_stamp_
+)
+SELECT * FROM summary_data where days_difference >=1 order by days_difference desc
